@@ -17,20 +17,20 @@ int* student_help_counts;
 pthread_mutex_t mutex;
 
 void* studentsThd(void* arg) {
-    printf("thread created");
+    printf("student thread created\n");
 }
 
 void* professorThd(void* arg) {
-
+    printf("professor thread created\n");
 }
 
 int main() {
-    printf("CS 370 - Sleeping Professor Project");
+    printf("CS 370 - Sleeping Professor Project\n");
 
     // have user enter student count, check for valid entry
     int student_count;
         do {
-        printf("How many students coming to professor's office? ");
+        printf("How many students coming to professor's office? \n");
         scanf("%d", &student_count);
     } while (student_count < STUDENT_COUNT_MIN || student_count > STUDENT_COUNT_MAX);
 
