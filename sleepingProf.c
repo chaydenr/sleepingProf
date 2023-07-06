@@ -17,11 +17,65 @@ int* student_help_counts;
 pthread_mutex_t mutex;
 
 void* studentsThd(void* arg) {
-    printf("student thread created\n");
+    printf("DEBUG: student thread created\n");
+    int student_id = *(int*)arg;
+
+    while (1) {
+        printf("Student %d doing assignment.\n", student_id);
+
+        // student works on the assignment for a random amount of time
+        usleep(rand() % 2000000);
+
+        printf("Student %d needs help from the professor.\n", student_id);
+
+        // get chair count
+        pthread_mutex_lock(&mutex);
+        int current_chair_count = chair_count;
+        pthread_mutex_unlock(&mutex);
+        
+        if (current_chair_count < STUDENT_COUNT_MAX) {
+            // check if all chairs available
+            if (current_chair_count == 0) {
+                // awaken the sleeping professor
+                printf("DEBUG: Student %d wakes the professor.\n", student_id);
+                sem_post(&professor_sleeping);
+            }
+
+            // occupy a chair
+            sem_wait(&student_chairs[student_id - 1]);
+            printf("DEBUG: Student %d takes a seat. Remaining chairs: %d\n", student_id, current_chair_count - 1);
+
+            // update chair count
+            pthread_mutex_lock(&mutex);
+            chair_count--;
+            pthread_mutex_unlock(&mutex);
+
+            // wait until professor is available to help
+            sem_wait(&student_waiting);
+
+            // Professor helps the student
+            printf("Professor is helping a student.\n");
+            printf("Student %d is getting help from the professor.\n", student_id);
+
+            // wait until professor is done helping
+            sem_wait(&student_chairs[student_id - 1]);
+            
+            // decrement the help count for that student
+            pthread_mutex_lock(&mutex);
+            student_help_counts[student_id - 1]--;
+            pthread_mutex_unlock(&mutex);
+
+            if (student_help_counts[student_id - 1] == 0) {
+                // Student's help count is 0, exit thread
+                printf("Student %d has been helped enough. Exiting thread.\n", student_id);
+                return NULL;
+            }
+        }
+    }
 }
 
 void* professorThd(void* arg) {
-    printf("professor thread created\n");
+    printf("DEBUG: professor thread created\n");
     int* student_ids = (int*)arg;
 
     while (1) {
