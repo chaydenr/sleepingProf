@@ -58,7 +58,7 @@ void* studentsThd(void* arg) {
 
             sem_post(&student_waiting);
 
-            sem_wait(&student_chairs[current_chair_count - 1]);
+            // sem_wait(&student_chairs[current_chair_count - 1]);
             printf("DEBUG: Student %d takes a seat. Remaining chairs: %d\n", student_id, current_chair_count - 1);
 
             // wait until professor is available to help
@@ -102,7 +102,7 @@ void* professorThd(void* arg) {
             int student_id;
             sem_wait(&student_waiting);
             sem_getvalue(&student_waiting, &student_id);
-            // sem_wait(&student_chairs[student_id - 1]);
+            sem_wait(&student_chairs[student_id - 1]);
 
             printf("Student frees chair and enters professor's office. Remaining chairs: %d\n", chair_count);
 
