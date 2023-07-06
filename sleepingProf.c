@@ -5,12 +5,13 @@
 
 #define STUDENT_COUNT_MIN 1
 #define STUDENT_COUNT_MAX 10
-#define HELPS_MAX 5
+#define CHAIR_COUNT 3
+#define HELPS_MAX 3
 
 // globals
 sem_t professor_sleeping;
 sem_t student_waiting;
-int chair_count = 3;
+int chair_track = 3;
 // sem_t* student_chairs;
 pthread_t* student_threads;
 int* student_help_counts;
@@ -32,9 +33,9 @@ void* studentsThd(void* arg) {
 
         // get chair count
         pthread_mutex_lock(&mutex);
-        int current_chair_count = chair_count;
+        int current_chair_count = chair_track;
         pthread_mutex_unlock(&mutex);
-            
+
         // check if chairs available
         if (current_chair_count == 0) {
             // awaken the sleeping professor
@@ -44,33 +45,33 @@ void* studentsThd(void* arg) {
         } else {
             if (current_chair_count == 3) {
                 // all chairs are available, wake professor
-                printf("DEBUG: Student %d wakes the professor.\n", student_id);
+                // printf("DEBUG: Student %d wakes the professor.\n", student_id);
                 sem_post(&professor_sleeping);
             }
-            
+
             // sem_wait(&student_chairs[student_id - 1]);
 
             // occupy a chair
             // update chair count
             pthread_mutex_lock(&mutex);
-            chair_count--;
+            chair_track--;
             pthread_mutex_unlock(&mutex);
 
-            sem_post(&student_waiting);
-
-            // sem_wait(&student_chairs[current_chair_count - 1]);
-            printf("DEBUG: Student %d takes a seat. Remaining chairs: %d\n", student_id, current_chair_count - 1);
-
-            // wait until professor is available to help
             // sem_post(&student_waiting);
 
+            // sem_wait(&student_chairs[current_chair_count - 1]);
+            // printf("DEBUG: Student %d takes a seat. Remaining chairs: %d\n", student_id, current_chair_count - 1);
+
+            // wait until professor is available to help
+            sem_post(&student_waiting);
+
             // Professor helps the student
-            printf("Professor is helping a student.\n");
-            printf("DEBUG: Student %d is getting help from the professor.\n", student_id);
+            // printf("Professor is helping a student.\n");
+            printf("Student %d is getting help from the professor.\n", student_id);
 
             // wait until professor is done helping
             sem_wait(&student_chairs[student_id - 1]);
-            
+
             // decrement the help count for that student
             pthread_mutex_lock(&mutex);
             student_help_counts[student_id - 1]--;
@@ -98,18 +99,24 @@ void* professorThd(void* arg) {
 
         // loop to help all waiting students
         while (1) {
+            // if chairs empty, break
+            if (chair_track == 3) {
+                break;
+            }
+
+            // Increment chair count
+            pthread_mutex_lock(&mutex);
+            chair_track++;
+            pthread_mutex_unlock(&mutex);
+
             // student vacates a chair and enters office
             int student_id;
             sem_wait(&student_waiting);
             sem_getvalue(&student_waiting, &student_id);
             sem_wait(&student_chairs[student_id - 1]);
 
-            printf("Student frees chair and enters professor's office. Remaining chairs: %d\n", chair_count);
 
-            // Increment chair count
-            pthread_mutex_lock(&mutex);
-            chair_count++;
-            pthread_mutex_unlock(&mutex);
+            printf("Student frees chair and enters professor's office. Remaining chairs: %d\n", chair_track);
 
             printf("Professor is helping a student.\n");
             // professor helping the student for random time
@@ -117,21 +124,21 @@ void* professorThd(void* arg) {
 
             // signal that next student can enter
             sem_post(&student_chairs[student_id - 1]);
+        }
 
-            // check if all students have been helped
-            int student_helps_check = 1;
-            for (int i = 0; i < STUDENT_COUNT_MAX; i++) {
-                if (student_help_counts[i] > 0) {
-                    student_helps_check = 0;
-                    break;
-                }
+        // check if all students have been helped
+        int student_helps_check = 1;
+        for (int i = 0; i < STUDENT_COUNT_MAX; i++) {
+            if (student_help_counts[i] > 0) {
+                student_helps_check = 0;
+                break;
             }
+        }
 
-            if (student_helps_check) {
-                // help check == 1, all students have been helped
-                printf("All students assisted, professor is leaving.\n");
-                return NULL;
-            }
+        if (student_helps_check) {
+            // help check == 1, all students have been helped
+            printf("All students assisted, professor is leaving.\n");
+            return NULL;
         }
     }
 }
