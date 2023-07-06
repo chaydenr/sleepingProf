@@ -15,7 +15,7 @@ sem_t* student_chairs;
 pthread_t* student_threads;
 int* student_help_counts;
 pthread_mutex_t mutex;
-
+// test git clone
 void* studentsThd(void* arg) {
     printf("thread created");
 }
