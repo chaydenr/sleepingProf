@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <pthread.h>
 #include <semaphore.h>
+#include <unistd.h>
 
 #define STUDENT_COUNT_MIN 1
 #define STUDENT_COUNT_MAX 10
@@ -11,7 +12,8 @@
 // globals
 sem_t professor_sleeping;
 sem_t student_waiting;
-int chair_track = 3;
+int chair_index = 0;
+int chair_left = 0;
 // sem_t* student_chairs;
 pthread_t* student_threads;
 int* student_help_counts;
@@ -35,17 +37,17 @@ void* studentsThd(void* arg) {
 
         // get chair count
         pthread_mutex_lock(&mutex_chair);
-        int current_chair_count = chair_track;
+        int current_chair_count = chair_index;
         pthread_mutex_unlock(&mutex_chair);
 
         // check if chairs available
-        if (current_chair_count == 0) {
+        if (current_chair_count >= 3) {
             // awaken the sleeping professor
             // printf("DEBUG: Student %d wakes the professor.\n", student_id);
             printf("Chairs occupied, student %d will return later.\n", student_id);
             continue;
         } else {
-            if (current_chair_count == 3) {
+            if (current_chair_count == 0) {
                 // all chairs are available, wake professor
                 // printf("DEBUG: Student %d wakes the professor.\n", student_id);
                 sem_post(&professor_sleeping);
@@ -56,7 +58,8 @@ void* studentsThd(void* arg) {
             // occupy a chair
             // update chair count
             pthread_mutex_lock(&mutex_chair);
-            chair_track--;
+            chair_index--;
+            int j = (chair_left + chair_index) % 3; // get index
             pthread_mutex_unlock(&mutex_chair);
 
             // sem_post(&student_waiting);
@@ -65,14 +68,16 @@ void* studentsThd(void* arg) {
             // printf("DEBUG: Student %d takes a seat. Remaining chairs: %d\n", student_id, current_chair_count - 1);
 
             // wait until professor is available to help
-            sem_post(&student_waiting);
+            // sem_post(&student_waiting);
+            sem_wait(&student_chairs[j]);
 
             // Professor helps the student
             // printf("Professor is helping a student.\n");
             printf("Student %d is getting help from the professor.\n", student_id);
 
             // wait until professor is done helping
-            sem_wait(&student_chairs[student_id - 1]);
+            // sem_wait(&student_chairs[student_id - 1]);
+            sem_wait(&student_waiting);
 
             // decrement the help count for that student
             pthread_mutex_lock(&mutex_help_counts);
@@ -85,7 +90,7 @@ void* studentsThd(void* arg) {
             }
 
             // student done receiving help
-            sem_post(&student_chairs[student_id - 1]);
+            // sem_post(&student_chairs[student_id - 1]);
         }
     }
 }
@@ -101,31 +106,42 @@ void* professorThd(void* arg) {
 
         // loop to help all waiting students
         while (1) {
+            pthread_mutex_lock(&mutex_chair);
             // if chairs empty, break
-            if (chair_track == 3) {
+            if (chair_index == 0) {
+                pthread_mutex_unlock(&mutex_chair);
                 break;
             }
 
-            // Increment chair count
-            pthread_mutex_lock(&mutex_chair);
-            chair_track++;
+            // student frees hallway chair and enters office
+            sem_post(&student_chairs[chair_left]);
+            chair_index--; 
+            printf("Student frees chair and enters professor's office. Remaining chairs: %d\n", 3 - chair_index);
+            // chair_left++; // check logic
+            chair_left = (chair_left + 1) % 3;
             pthread_mutex_unlock(&mutex_chair);
 
+            // Increment chair count
+            // pthread_mutex_lock(&mutex_chair);
+            // chair_index--;
+            // pthread_mutex_unlock(&mutex_chair);
+
             // student vacates a chair and enters office
-            int student_id;
-            sem_wait(&student_waiting);
-            sem_getvalue(&student_waiting, &student_id);
-            sem_wait(&student_chairs[student_id - 1]);
+            // int student_id;
+            // sem_wait(&student_waiting);
+            // sem_getvalue(&student_waiting, &student_id);
+            // sem_wait(&student_chairs[student_id - 1]);
 
 
-            printf("Student frees chair and enters professor's office. Remaining chairs: %d\n", chair_track);
+            // printf("Student frees chair and enters professor's office. Remaining chairs: %d\n", chair_index);
 
             printf("Professor is helping a student.\n");
             // professor helping the student for random time
             usleep(rand() % 1500000);
 
             // signal that next student can enter
-            sem_post(&student_chairs[student_id - 1]);
+            // sem_post(&student_chairs[student_id - 1]);
+            sem_post(&student_waiting);
         }
 
         // check if all students have been helped
@@ -175,10 +191,6 @@ int main() {
     for (int i = 0; i < 3; i++) {
         sem_init(&student_chairs[i], 0, 0);
     }
-    // student_chairs = (sem_t*)malloc(sizeof(sem_t) * student_count);
-    // for (int i = 0; i < student_count; i++) {
-    //     sem_init(&student_chairs[i], 0, 0);
-    // }
 
     // initialize mutex for shared variables
     pthread_mutex_init(&mutex_chair, NULL);
@@ -201,5 +213,6 @@ int main() {
         pthread_join(student_threads[i], NULL);
     }
 
+    // free malloc memory
     return 0;
 }
