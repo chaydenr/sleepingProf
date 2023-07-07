@@ -21,7 +21,7 @@ int* student_help_counts;
 pthread_mutex_t mutex_chair;
 pthread_mutex_t mutex_help_counts;
 
-sem_t student_chairs[3];
+sem_t student_chairs[CHAIR_COUNT];
 
 void* studentsThd(void* arg) {
     // printf("DEBUG: student thread created\n");
@@ -58,8 +58,9 @@ void* studentsThd(void* arg) {
             // occupy a chair
             // update chair count
             pthread_mutex_lock(&mutex_chair);
-            chair_index--;
-            int j = (chair_left + chair_index) % 3; // get index
+            chair_index++;
+            int j = chair_left;
+            chair_left = (chair_left + 1) % 3; // get index
             pthread_mutex_unlock(&mutex_chair);
 
             // sem_post(&student_waiting);
@@ -114,7 +115,7 @@ void* professorThd(void* arg) {
             }
 
             // student frees hallway chair and enters office
-            sem_post(&student_chairs[chair_left]);
+            sem_post(&student_chairs[chair_index - 1]);
             chair_index--; 
             printf("Student frees chair and enters professor's office. Remaining chairs: %d\n", 3 - chair_index);
             // chair_left++; // check logic
