@@ -25,12 +25,12 @@ void* studentsThd(void* arg) {
     int student_id = *(int*)arg;
 
     while (1) {
-        printf("Student %d doing assignment.\n", student_id);
+        printf("\033[0;93mStudent %d doing assignment.\033[0m\n", student_id);
 
         // student works on the assignment for a random amount of time
         usleep(rand() % 2000000);
 
-        printf("Student %d needs help from the professor.\n", student_id);
+        printf("\033[0;31mStudent %d needs help from the professor.\033[0m\n", student_id);
 
         // get chair count
         pthread_mutex_lock(&mutex_chair_index);
@@ -40,7 +40,7 @@ void* studentsThd(void* arg) {
         // check if chairs available
         if (current_chair_count >= 3) {
             // awaken the sleeping professor
-            printf("Chairs occupied, student %d will return later.\n", student_id);
+            printf("\033[0;31mChairs occupied, student %d will return later.\033[0m\n", student_id);
             continue;
         } else {
             if (current_chair_count == 0) {
@@ -62,7 +62,7 @@ void* studentsThd(void* arg) {
             sem_wait(&student_chairs[j]);
 
             // Professor helps the student
-            printf("Student %d is getting help from the professor.\n", student_id);
+            printf("\033[0;31mStudent %d is getting help from the professor.\033[0m\n", student_id);
 
             // wait until professor is done helping
             sem_wait(&student_waiting);
@@ -86,7 +86,7 @@ void* professorThd(void* arg) {
     while (1) {
         // wait until awakened by a student
         sem_wait(&professor_sleeping);
-        printf("Professor is awakened by a student.\n");
+        printf("\033[0;92mProfessor is awakened by a student.\033[0m\n");
 
         // loop to help all waiting students
         while (1) {
@@ -102,13 +102,13 @@ void* professorThd(void* arg) {
             sem_post(&student_chairs[chair_index - 1]);
             chair_index--; 
             pthread_mutex_unlock(&mutex_chair_index);
-            printf("Student frees chair and enters professor's office. Remaining chairs: %d\n", 3 - chair_index);
+            printf("\033[0;92mStudent frees chair and enters professor's office. Remaining chairs: %d\033[0m\n", 3 - chair_index);
             // chair_left++; // check logic
             chair_left = (chair_left + 1) % CHAIR_COUNT;
             pthread_mutex_unlock(&mutex_chair);
 
             // professor helping the student for random time
-            printf("Professor is helping a student.\n");
+            printf("\033[0;92mProfessor is helping a student.\033[0m\n");
             usleep(rand() % 1500000);
 
             // signal that next student can enter
@@ -128,7 +128,7 @@ void* professorThd(void* arg) {
 
         if (student_helps_check) {
             // help check == 1, all students have been helped
-            printf("All students assisted, professor is leaving.\n");
+            printf("\033[0;94mAll students assisted, professor is leaving.\033[0m\n");
             return NULL;
         }
     }
