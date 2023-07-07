@@ -15,7 +15,9 @@ int chair_track = 3;
 // sem_t* student_chairs;
 pthread_t* student_threads;
 int* student_help_counts;
-pthread_mutex_t mutex;
+// pthread_mutex_t mutex;
+pthread_mutex_t mutex_chair;
+pthread_mutex_t mutex_help_counts;
 
 sem_t student_chairs[3];
 
@@ -32,9 +34,9 @@ void* studentsThd(void* arg) {
         printf("Student %d needs help from the professor.\n", student_id);
 
         // get chair count
-        pthread_mutex_lock(&mutex);
+        pthread_mutex_lock(&mutex_chair);
         int current_chair_count = chair_track;
-        pthread_mutex_unlock(&mutex);
+        pthread_mutex_unlock(&mutex_chair);
 
         // check if chairs available
         if (current_chair_count == 0) {
@@ -53,9 +55,9 @@ void* studentsThd(void* arg) {
 
             // occupy a chair
             // update chair count
-            pthread_mutex_lock(&mutex);
+            pthread_mutex_lock(&mutex_chair);
             chair_track--;
-            pthread_mutex_unlock(&mutex);
+            pthread_mutex_unlock(&mutex_chair);
 
             // sem_post(&student_waiting);
 
@@ -73,9 +75,9 @@ void* studentsThd(void* arg) {
             sem_wait(&student_chairs[student_id - 1]);
 
             // decrement the help count for that student
-            pthread_mutex_lock(&mutex);
+            pthread_mutex_lock(&mutex_help_counts);
             student_help_counts[student_id - 1]--;
-            pthread_mutex_unlock(&mutex);
+            pthread_mutex_unlock(&mutex_help_counts);
 
             if (student_help_counts[student_id - 1] == 0) {
                 // Student's help count is 0, exit thread
@@ -105,9 +107,9 @@ void* professorThd(void* arg) {
             }
 
             // Increment chair count
-            pthread_mutex_lock(&mutex);
+            pthread_mutex_lock(&mutex_chair);
             chair_track++;
-            pthread_mutex_unlock(&mutex);
+            pthread_mutex_unlock(&mutex_chair);
 
             // student vacates a chair and enters office
             int student_id;
@@ -128,12 +130,14 @@ void* professorThd(void* arg) {
 
         // check if all students have been helped
         int student_helps_check = 1;
+        pthread_mutex_lock(&mutex_help_counts);
         for (int i = 0; i < STUDENT_COUNT_MAX; i++) {
             if (student_help_counts[i] > 0) {
                 student_helps_check = 0;
                 break;
             }
         }
+        pthread_mutex_unlock(&mutex_help_counts);
 
         if (student_helps_check) {
             // help check == 1, all students have been helped
@@ -177,7 +181,8 @@ int main() {
     // }
 
     // initialize mutex for shared variables
-    pthread_mutex_init(&mutex, NULL);
+    pthread_mutex_init(&mutex_chair, NULL);
+    pthread_mutex_init(&mutex_help_counts, NULL);
 
     // initialize one professor thread
     pthread_t professor_thread;
